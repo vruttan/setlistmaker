@@ -12,7 +12,6 @@ export interface GigConfig {
 }
 
 interface SetlistFormProps {
-  disabled: boolean;
   onGenerate: (config: GigConfig) => void;
 }
 
@@ -23,15 +22,23 @@ const DEFAULT_CONFIG: GigConfig = {
   arcShape: 1,
 };
 
-export function SetlistForm({ disabled, onGenerate }: SetlistFormProps) {
+export function SetlistForm({ onGenerate }: SetlistFormProps) {
   const [config, setConfig] = useState<GigConfig>(DEFAULT_CONFIG);
+  // Number inputs keep the raw text so clearing a field doesn't silently
+  // become 0; `required`/min/max make the browser block invalid submits.
+  const [gigLengthText, setGigLengthText] = useState(String(DEFAULT_CONFIG.gigLengthMinutes));
+  const [spanishPctText, setSpanishPctText] = useState(String(DEFAULT_CONFIG.spanishTargetPct));
 
   return (
     <form
       className="flex flex-col gap-3 rounded border border-black/10 p-4 dark:border-white/20"
       onSubmit={(e) => {
         e.preventDefault();
-        onGenerate(config);
+        onGenerate({
+          ...config,
+          gigLengthMinutes: Number(gigLengthText),
+          spanishTargetPct: Number(spanishPctText),
+        });
       }}
     >
       <div className="flex flex-wrap gap-4">
@@ -39,9 +46,10 @@ export function SetlistForm({ disabled, onGenerate }: SetlistFormProps) {
           Gig length (minutes)
           <input
             type="number"
+            required
             min={1}
-            value={config.gigLengthMinutes}
-            onChange={(e) => setConfig((c) => ({ ...c, gigLengthMinutes: Number(e.target.value) }))}
+            value={gigLengthText}
+            onChange={(e) => setGigLengthText(e.target.value)}
             className="w-28 rounded border border-black/10 p-1 dark:border-white/20"
           />
         </label>
@@ -50,10 +58,11 @@ export function SetlistForm({ disabled, onGenerate }: SetlistFormProps) {
           Spanish content target (%)
           <input
             type="number"
+            required
             min={0}
             max={100}
-            value={config.spanishTargetPct}
-            onChange={(e) => setConfig((c) => ({ ...c, spanishTargetPct: Number(e.target.value) }))}
+            value={spanishPctText}
+            onChange={(e) => setSpanishPctText(e.target.value)}
             className="w-28 rounded border border-black/10 p-1 dark:border-white/20"
           />
         </label>
@@ -87,7 +96,6 @@ export function SetlistForm({ disabled, onGenerate }: SetlistFormProps) {
 
       <button
         type="submit"
-        disabled={disabled}
         className="w-fit rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-white dark:text-black"
       >
         Generate setlist

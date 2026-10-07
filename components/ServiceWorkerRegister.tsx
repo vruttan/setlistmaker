@@ -28,6 +28,12 @@ export function ServiceWorkerRegister() {
         console.error("Service worker registration failed:", err);
       });
     };
+    // Effects can run after the load event has already fired, in which case
+    // waiting for it would mean never registering.
+    if (document.readyState === "complete") {
+      register();
+      return;
+    }
     window.addEventListener("load", register);
     return () => window.removeEventListener("load", register);
   }, []);

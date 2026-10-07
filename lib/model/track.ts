@@ -25,6 +25,10 @@ export interface ImportedTrack {
   tempo: number;
   timeSignature: number;
   camelot: string;
+  /** A local file (spotify:local:…) rather than a Spotify catalog track. */
+  isLocal: boolean;
+  /** False when Spotify has no audio analysis (key/tempo/energy) for the track. */
+  hasAudioFeatures: boolean;
 }
 
 export type Language = "spanish" | "not-spanish" | "unknown";

@@ -1,22 +1,17 @@
 "use client";
 
 import type { ClassifiedTrack } from "@/lib/model/track";
-import type { TradeoffEvent } from "@/lib/setlist/select";
+import type { SpanishWeightMode, TradeoffEvent } from "@/lib/setlist/select";
+import { formatDuration } from "@/lib/format";
 
 interface SetlistResultProps {
   ordered: ClassifiedTrack[];
   unusedSorted: ClassifiedTrack[];
   tradeoffs: TradeoffEvent[];
   achievedSpanishPct: number;
+  spanishWeightMode: SpanishWeightMode;
   totalDurationMs: number;
   gigLengthMinutes: number;
-}
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.round(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 export function SetlistResult({
@@ -24,6 +19,7 @@ export function SetlistResult({
   unusedSorted,
   tradeoffs,
   achievedSpanishPct,
+  spanishWeightMode,
   totalDurationMs,
   gigLengthMinutes,
 }: SetlistResultProps) {
@@ -35,7 +31,8 @@ export function SetlistResult({
         <p>
           <strong>{ordered.length}</strong> tracks selected, running{" "}
           <strong>{(totalDurationMs / 60000).toFixed(1)} min</strong> of {gigLengthMinutes} min requested. Achieved{" "}
-          <strong>{achievedSpanishPct.toFixed(1)}%</strong> Spanish content.
+          <strong>{achievedSpanishPct.toFixed(1)}%</strong> Spanish content{" "}
+          {spanishWeightMode === "duration" ? "(by duration)" : "(by track count)"}.
         </p>
         {tradeoffs.length > 0 && (
           <ul className="mt-2 list-disc pl-5 text-amber-700 dark:text-amber-400">
@@ -55,7 +52,9 @@ export function SetlistResult({
                 {i + 1}. {t.trackName} — {t.artistNames.join(", ")}
               </span>
               <span className="text-black/50 dark:text-white/50">
-                {t.camelot} · {t.tempo.toFixed(0)}bpm · {formatDuration(t.durationMs)}
+                {t.hasAudioFeatures ? `${t.camelot} · ${t.tempo.toFixed(0)}bpm` : t.isLocal ? "local file" : "no audio data"}
+                {" · "}
+                {formatDuration(t.durationMs)}
                 {t.language === "spanish" ? " · ES" : ""}
               </span>
             </li>

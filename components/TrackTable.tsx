@@ -1,6 +1,7 @@
 "use client";
 
 import type { ClassifiedTrack } from "@/lib/model/track";
+import { formatDuration } from "@/lib/format";
 
 interface TrackTableProps {
   tracks: ClassifiedTrack[];
@@ -46,11 +47,14 @@ export function TrackTable({ tracks, mustHaveUris, onToggleMustHave, onToggleSpa
                   aria-label={`Mark ${t.trackName} as Spanish`}
                 />
               </td>
-              <td className="p-2">{t.trackName}</td>
+              <td className="p-2">
+                {t.trackName}
+                {t.isLocal && <span className="ml-1 text-xs text-black/50 dark:text-white/50">(local file)</span>}
+              </td>
               <td className="p-2">{t.artistNames.join(", ")}</td>
-              <td className="p-2">{Math.round(t.durationMs / 1000 / 60)}:{String(Math.round((t.durationMs / 1000) % 60)).padStart(2, "0")}</td>
-              <td className="p-2">{t.tempo.toFixed(0)}</td>
-              <td className="p-2">{t.camelot}</td>
+              <td className="p-2">{formatDuration(t.durationMs)}</td>
+              <td className="p-2">{t.hasAudioFeatures ? t.tempo.toFixed(0) : "—"}</td>
+              <td className="p-2">{t.hasAudioFeatures ? t.camelot : "—"}</td>
               <td className="p-2">{t.popularity}</td>
             </tr>
           ))}

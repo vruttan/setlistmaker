@@ -31,6 +31,9 @@ export interface SelectionResult {
 const SCORE_WEIGHT_POPULARITY = 0.8;
 const SCORE_WEIGHT_TYPICALITY = 0.2;
 const SPANISH_TOLERANCE_PCT = 2;
+// An exact fill is practically impossible, so only report under-filling
+// when the leftover gap is large enough to matter on the night.
+const UNDERFILL_TOLERANCE_MS = 3 * 60 * 1000;
 
 function median(values: number[]): number {
   if (values.length === 0) return 0;
@@ -138,26 +141,36 @@ export function generateSetlist(input: SelectionInput): SelectionResult {
 
   const stillRemainingMs = remainingMs();
   const leftoverPool = [...spanishPool, ...otherPool];
-  if (stillRemainingMs > 0 && leftoverPool.length > 0) {
-    const smallestRemaining = Math.min(...leftoverPool.map((t) => t.durationMs));
-    if (smallestRemaining > stillRemainingMs) {
-      tradeoffs.push({
-        type: "gig-length-underfilled",
-        detail: `Could not fully fill the ${minutes(gigLengthMs)}-minute gig — about ${minutes(stillRemainingMs)} minute(s) left unused because no remaining track was short enough to fit.`,
-      });
-    }
-  } else if (stillRemainingMs > 0 && leftoverPool.length === 0) {
+  if (stillRemainingMs > UNDERFILL_TOLERANCE_MS && leftoverPool.length > 0) {
+    tradeoffs.push({
+      type: "gig-length-underfilled",
+      detail: `Could not fully fill the ${minutes(gigLengthMs)}-minute gig — about ${minutes(stillRemainingMs)} minute(s) left unused because no remaining track was short enough to fit.`,
+    });
+  } else if (stillRemainingMs > UNDERFILL_TOLERANCE_MS && leftoverPool.length === 0) {
     tradeoffs.push({
       type: "gig-length-underfilled",
       detail: `Only filled ${minutes(totalDurationMs)} of ${minutes(gigLengthMs)} requested minutes — not enough tracks in the imported playlist.`,
     });
   }
 
-  const achievedSpanishPct = totalDurationMs > 0 ? (currentSpanishMs / totalDurationMs) * 100 : 0;
-  if (Math.abs(achievedSpanishPct - spanishTargetPct) > SPANISH_TOLERANCE_PCT) {
+  const achievedSpanishPct =
+    spanishWeightMode === "duration"
+      ? totalDurationMs > 0
+        ? (currentSpanishMs / totalDurationMs) * 100
+        : 0
+      : selected.length > 0
+        ? (currentSpanishCount / selected.length) * 100
+        : 0;
+  const spanishDeltaPct = achievedSpanishPct - spanishTargetPct;
+  if (Math.abs(spanishDeltaPct) > SPANISH_TOLERANCE_PCT) {
+    const unit = spanishWeightMode === "duration" ? "by duration" : "by track count";
+    const reason =
+      spanishDeltaPct < 0
+        ? "not enough Spanish tracks of suitable length were available after other constraints."
+        : "must-have tracks or track lengths pushed it over (or too few non-Spanish tracks were available).";
     tradeoffs.push({
       type: "spanish-target-missed",
-      detail: `Achieved ${achievedSpanishPct.toFixed(1)}% Spanish content vs. a ${spanishTargetPct}% target — not enough qualifying tracks of suitable length were available after other constraints.`,
+      detail: `Achieved ${achievedSpanishPct.toFixed(1)}% Spanish content ${unit} vs. a ${spanishTargetPct}% target — ${reason}`,
     });
   }
 

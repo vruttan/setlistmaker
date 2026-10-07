@@ -6,7 +6,7 @@ import { TrackTable } from "@/components/TrackTable";
 import { SetlistForm, type GigConfig } from "@/components/SetlistForm";
 import { SetlistResult } from "@/components/SetlistResult";
 import { toClassifiedTrack, type ClassifiedTrack, type ImportedTrack } from "@/lib/model/track";
-import { generateSetlist, type SelectionResult } from "@/lib/setlist/select";
+import { generateSetlist, type SelectionResult, type SpanishWeightMode } from "@/lib/setlist/select";
 import { orderForDancefloor } from "@/lib/setlist/order";
 import { sortUnusedAlphabetically } from "@/lib/setlist/unused";
 import { OrderedListExport } from "@/components/OrderedListExport";
@@ -19,6 +19,10 @@ export default function Home() {
   const [result, setResult] = useState<SelectionResult | null>(null);
   const [gigLengthMinutes, setGigLengthMinutes] = useState(120);
   const [arcShape, setArcShape] = useState<1 | 2>(1);
+  const [spanishWeightMode, setSpanishWeightMode] = useState<SpanishWeightMode>("duration");
+  // Set when must-have/Spanish flags change after a setlist was generated, so
+  // the displayed result is flagged as out of date until regenerated.
+  const [resultStale, setResultStale] = useState(false);
   const [includeUnusedInCopy, setIncludeUnusedInCopy] = useState(true);
 
   function handleImport(imported: ImportedTrack[], warnings: string[]) {
@@ -26,6 +30,7 @@ export default function Home() {
     setImportWarnings(warnings);
     setMustHaveUris(new Set());
     setResult(null);
+    setResultStale(false);
   }
 
   function toggleMustHave(uri: string) {
@@ -35,6 +40,7 @@ export default function Home() {
       else next.add(uri);
       return next;
     });
+    if (result) setResultStale(true);
   }
 
   function toggleSpanish(uri: string) {
@@ -43,17 +49,19 @@ export default function Home() {
         t.trackUri === uri
           ? {
               ...t,
-              language: t.language === "spanish" ? "unknown" : "spanish",
+              language: t.language === "spanish" ? "not-spanish" : "spanish",
               languageSource: "manual-override",
             }
           : t
       )
     );
+    if (result) setResultStale(true);
   }
 
   function handleGenerate(config: GigConfig) {
     setGigLengthMinutes(config.gigLengthMinutes);
     setArcShape(config.arcShape);
+    setSpanishWeightMode(config.spanishWeightMode);
     const selection = generateSetlist({
       tracks,
       gigLengthMs: config.gigLengthMinutes * 60 * 1000,
@@ -62,6 +70,7 @@ export default function Home() {
       mustHaveUris: Array.from(mustHaveUris),
     });
     setResult(selection);
+    setResultStale(false);
   }
 
   const ordered = useMemo(() => {
@@ -132,17 +141,23 @@ export default function Home() {
             onToggleMustHave={toggleMustHave}
             onToggleSpanish={toggleSpanish}
           />
-          <SetlistForm disabled={tracks.length === 0} onGenerate={handleGenerate} />
+          <SetlistForm onGenerate={handleGenerate} />
         </>
       )}
 
       {result && (
         <>
+          {resultStale && (
+            <p className="rounded border border-amber-400/50 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+              Track flags changed since this setlist was generated — click &quot;Generate setlist&quot; to update it.
+            </p>
+          )}
           <SetlistResult
             ordered={ordered}
             unusedSorted={unusedSorted}
             tradeoffs={result.tradeoffs}
             achievedSpanishPct={result.achievedSpanishPct}
+            spanishWeightMode={spanishWeightMode}
             totalDurationMs={result.totalDurationMs}
             gigLengthMinutes={gigLengthMinutes}
           />
